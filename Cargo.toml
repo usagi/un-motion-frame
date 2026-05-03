@@ -1,0 +1,26 @@
+[package]
+name = "un-motion-frame"
+version = "1.0.0"
+edition = "2024"
+license = "MIT"
+authors = ["usagi / USAGI.NETWORK"]
+repository = "https://github.com/usagi/un-motion-frame"
+description = "UNMotion と関連プロジェクト向けのトランスポート非依存モーションフレームスキーマ。"
+readme = "README.md"
+keywords = ["motion-capture", "mocap", "avatar", "schema"]
+categories = ["data-structures", "multimedia"]
+
+[lib]
+name = "un_motion_frame"
+path = "src/lib.rs"
+
+[features]
+default = ["std", "serde"]
+std = []
+serde = ["dep:serde"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"], optional = true }
+
+[dev-dependencies]
+serde_json = "1"
