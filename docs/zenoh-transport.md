@@ -1,7 +1,7 @@
 # UNMotionFrame Zenoh Transport
 
 この文書は、`un-motion-frame` v1.1.0 を **Zenoh で Pub/Sub** するときの wire 規約を定義する。
-実装は同 workspace の `un-motion-zenoh` crate が提供する。
+実装は同 workspace の `un-motion-frame-zenoh` crate が提供する。
 
 スキーマ規約 (`UNMotionFrame` の意味論) は `docs/schema.md`。本ページは「その frame を
 Zenoh で交換するときの **key / payload / QoS / 互換ルール**」だけを扱う。
@@ -9,18 +9,18 @@ Zenoh で交換するときの **key / payload / QoS / 互換ルール**」だ�
 ## 役割分担
 
 - `un-motion-frame`: トランスポート非依存のフレームスキーマ (`UNMotionFrame` 等)。
-- `un-motion-zenoh`: Zenoh 経由で `UNMotionFrame` を交換するための encode/decode、
+- `un-motion-frame-zenoh`: Zenoh 経由で `UNMotionFrame` を交換するための encode/decode、
   key expression 構築、Publisher / Subscriber、テスト用 In-Memory / Replay バックエンド。
 
-Publisher 側 (UNMotion など) と Subscriber 側 (UN Avatar など) は、**同じ `un-motion-zenoh`
+Publisher 側 (UNMotion など) と Subscriber 側 (UN Avatar など) は、**同じ `un-motion-frame-zenoh`
 crate を使う** ことで wire 規約が崩れないことを保証する。
 
 ## エンコーディング
 
 - 形式: **MessagePack** (`rmp-serde::to_vec` / `rmp-serde::from_slice`)。
 - 1 Zenoh メッセージ = 1 `UNMotionFrame`。
-- Publisher 側は `un_motion_zenoh::encode_frame(&frame)` を使う。
-- Subscriber 側は `un_motion_zenoh::decode_frame(&payload)` を使う。
+- Publisher 側は `un_motion_frame_zenoh::encode_frame(&frame)` を使う。
+- Subscriber 側は `un_motion_frame_zenoh::decode_frame(&payload)` を使う。
 - 直接 serde で別形式 (JSON 等) を流すことは **互換性の対象外**。
 
 理由: MessagePack は self-describing で順序 / 欠落 field に対する serde の挙動が安定しており、
@@ -53,7 +53,7 @@ Zenoh の key expression は **schema major version をセグメントとして�
 - `ByStreamId`: producer が `MotionHeader.stream_id` で論理ストリームを区別している場合に、
   Subscriber 側で stream 単位で filter / fan-out したいときに使う。
 
-discriminator セグメントは `un_motion_zenoh::sanitize_segment` で正規化する。
+discriminator セグメントは `un_motion_frame_zenoh::sanitize_segment` で正規化する。
 ASCII 英数字と `-_.` 以外は `_` に置換し、空文字列は `"unknown"` に置換する。Zenoh の
 セパレータ `/` や wildcard `*` `**` を意図せず注入しないための保険。
 
@@ -71,12 +71,12 @@ ASCII 英数字と `-_.` 以外は `_` に置換し、空文字列は `"unknown"
 
 1. `MotionHeader.version_major` / `version_minor` を実際の発行版に合わせる。
 2. key の `vN` セグメントは `version_major` と一致させる。
-3. payload は必ず `un_motion_zenoh::encode_frame` を経由してエンコードする。
+3. payload は必ず `un_motion_frame_zenoh::encode_frame` を経由してエンコードする。
 
 ### Subscriber (受信側)
 
 1. 既知の major version の key だけを subscribe する。
-2. `un_motion_zenoh::decode_frame` でデコードし、`MotionHeader.version_minor` を確認する。
+2. `un_motion_frame_zenoh::decode_frame` でデコードし、`MotionHeader.version_minor` を確認する。
    未知の minor を受信したら、その frame は未知 field を無視して既知 field だけで処理する
    (これが minor 互換の原則)。
 3. 未知 major が混じった場合は、subscribe key を絞ることで通常は到達しないが、万一受信したら
@@ -84,7 +84,7 @@ ASCII 英数字と `-_.` 以外は `_` に置換し、空文字列は `"unknown"
 
 ## QoS と reliability
 
-`un-motion-zenoh` v0.1 は Zenoh の **既定 QoS** を使う。すなわち:
+`un-motion-frame-zenoh` v0.1 は Zenoh の **既定 QoS** を使う。すなわち:
 
 - Reliability: `Reliable`
 - Priority: `DataMedium`
@@ -109,9 +109,9 @@ end-to-end 遅延を観測できる。Avatar 側のレンダラはこれを使�
 
 ## テスト戦略
 
-- **roundtrip 単体**: `un-motion-zenoh::InMemoryBackend` を Pub/Sub 双方に渡して、Zenoh セッション
+- **roundtrip 単体**: `un-motion-frame-zenoh::InMemoryBackend` を Pub/Sub 双方に渡して、Zenoh セッション
   を開かずに encode/decode + key 構築を一気通貫で検証する (`tests/roundtrip.rs` 参照)。
-- **replay**: `un-motion-zenoh::ReplayBackend` を Subscriber に渡して、保存しておいた frame 列を
+- **replay**: `un-motion-frame-zenoh::ReplayBackend` を Subscriber に渡して、保存しておいた frame 列を
   決定論的に再生する。
 - **実 Zenoh 環境**: 同じ machine 上で `ZenohSessionBackend` (Publisher) と
   `ZenohSubscriberBackend` (Subscriber) を別プロセスで起動し、loopback 経由で確認する。

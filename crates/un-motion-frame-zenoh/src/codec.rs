@@ -4,7 +4,7 @@ use crate::Error;
 
 /// `UNMotionFrame` を MessagePack バイト列にエンコードする。
 ///
-/// `un-motion-zenoh` の wire 規約上、Publisher 側はこの関数経由で payload を作る。
+/// `un-motion-frame-zenoh` の wire 規約上、Publisher 側はこの関数経由で payload を作る。
 pub fn encode_frame(frame: &UNMotionFrame) -> Result<Vec<u8>, Error> {
 	rmp_serde::to_vec(frame).map_err(Error::from)
 }

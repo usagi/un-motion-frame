@@ -15,7 +15,7 @@
 //! ## Publisher 側 (UNMotion)
 //!
 //! ```ignore
-//! use un_motion_zenoh::{Publisher, ZenohSessionBackend, ZenohTopicStrategy};
+//! use un_motion_frame_zenoh::{Publisher, ZenohSessionBackend, ZenohTopicStrategy};
 //! use un_motion_frame::UNMotionFrame;
 //!
 //! let backend = ZenohSessionBackend::open_default()?;
@@ -29,7 +29,7 @@
 //! ## Subscriber 側 (UN Avatar)
 //!
 //! ```ignore
-//! use un_motion_zenoh::{Subscriber, ZenohSubscriberBackend, ZenohTopicStrategy};
+//! use un_motion_frame_zenoh::{Subscriber, ZenohSubscriberBackend, ZenohTopicStrategy};
 //!
 //! let mut backend = ZenohSubscriberBackend::open_default()?;
 //! let subscriber = Subscriber::declare(&mut backend, ZenohTopicStrategy::default())?;

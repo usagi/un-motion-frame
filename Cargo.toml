@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/un-motion-frame", "crates/un-motion-zenoh"]
+members = ["crates/un-motion-frame", "crates/un-motion-frame-zenoh"]
 resolver = "2"
 
 [workspace.package]
