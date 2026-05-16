@@ -111,6 +111,23 @@ pub struct MotionHeader {
 	pub coordinate_space: CoordinateSpace,
 	pub handedness: Handedness,
 	pub length_unit: LengthUnit,
+	/// 同一プロデューサが複数の独立ストリームを並走させる場合に、
+	/// それらを区別する論理的な識別子 (free-form UTF-8)。
+	///
+	/// 例: 1 台のマシンで「右側カメラ Mediapipe」と「左側カメラ Mediapipe」を別ストリームとして
+	/// publish するとき、両者の `producer` が同じでも `stream_id` で受信側が区別できる。
+	///
+	/// v1.0 frame には存在しないため、デコード時は `None` が既定値。
+	#[cfg_attr(feature = "serde", serde(default))]
+	pub stream_id: Option<String>,
+	/// プロデューサが意図する 1 frame あたりの公称インターバル (nanoseconds)。
+	///
+	/// 受信側のバッファや補間は actual な inter-arrival time を優先するが、
+	/// この値があるとレイテンシ補正や再生レート推定の初期値として使える。
+	///
+	/// v1.0 frame には存在しないため、デコード時は `None` が既定値。
+	#[cfg_attr(feature = "serde", serde(default))]
+	pub expected_dt_ns: Option<u64>,
 }
 
 impl MotionHeader {
@@ -120,7 +137,7 @@ impl MotionHeader {
 		Self {
 			magic: Self::MAGIC,
 			version_major: 1,
-			version_minor: 0,
+			version_minor: 1,
 			sequence,
 			timestamp_basis: TimestampBasis::Unknown,
 			capture_timestamp_ns: 0,
@@ -129,6 +146,8 @@ impl MotionHeader {
 			coordinate_space: CoordinateSpace::Unknown,
 			handedness: Handedness::Unknown,
 			length_unit: LengthUnit::Unknown,
+			stream_id: None,
+			expected_dt_ns: None,
 		}
 	}
 }
@@ -168,7 +187,7 @@ pub struct TransformSample {
 	pub angular_velocity: Option<Vec3f>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(u16)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum HumanoidBone {
@@ -231,8 +250,19 @@ pub struct ExpressionSample {
 	pub value: f32,
 	pub confidence: f32,
 	pub source_index: Option<u16>,
-	#[cfg_attr(feature = "serde", serde(default))]
+	/// state を持たない v1.0 sender からのフレームには `Valid` を既定値として補う。
+	///
+	/// 元々の `SampleState::default()` は `Missing` だが、ExpressionSample が **存在する** こと自体が
+	/// 「value が利用可能」を意味するため、欠落時の解釈としては `Missing` よりも `Valid` の方が
+	/// 受信側ロジックを単純化できる。state を「保留」「フェード」させたい sender は明示的に
+	/// `Held` / `Decayed` を入れる。
+	#[cfg_attr(feature = "serde", serde(default = "expression_sample_default_state"))]
 	pub state: SampleState,
+}
+
+#[cfg(feature = "serde")]
+fn expression_sample_default_state() -> SampleState {
+	SampleState::Valid
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -336,7 +366,7 @@ impl Default for MotionMetadata {
 	fn default() -> Self {
 		Self {
 			schema_name: "UNMotionFrame".to_string(),
-			schema_version: "1.0.0".to_string(),
+			schema_version: "1.1.0".to_string(),
 			producer: None,
 			notes: Vec::new(),
 			extensions: Vec::new(),
@@ -384,10 +414,21 @@ mod tests {
 		assert_eq!(header.magic, *b"UNMF");
 	}
 
+	#[test]
+	fn motion_header_new_uses_v1_1_and_clears_v1_1_fields() {
+		let header = MotionHeader::new(42);
+		assert_eq!(header.version_major, 1);
+		assert_eq!(header.version_minor, 1);
+		assert_eq!(header.stream_id, None);
+		assert_eq!(header.expected_dt_ns, None);
+	}
+
 	#[cfg(feature = "serde")]
 	#[test]
 	fn frame_roundtrip_json() {
 		let mut frame = UNMotionFrame::new(7);
+		frame.header.stream_id = Some("rt0".to_string());
+		frame.header.expected_dt_ns = Some(16_666_667);
 		frame.sources.push(MotionSourceInfo {
 			source_id: "dummy".to_string(),
 			source_kind: MotionSourceKind::Dummy,
@@ -408,16 +449,46 @@ mod tests {
 		let decoded: UNMotionFrame = serde_json::from_str(&json).expect("deserialize frame");
 
 		assert_eq!(decoded.header.sequence, 7);
+		assert_eq!(decoded.header.stream_id.as_deref(), Some("rt0"));
+		assert_eq!(decoded.header.expected_dt_ns, Some(16_666_667));
 		assert_eq!(decoded.sources.len(), 1);
 		assert_eq!(decoded.signals.len(), 1);
 		assert_eq!(decoded.metadata.schema_name, "UNMotionFrame");
-		assert_eq!(decoded.metadata.schema_version, "1.0.0");
+		assert_eq!(decoded.metadata.schema_version, "1.1.0");
 		assert_eq!(decoded, frame);
 	}
 
 	#[cfg(feature = "serde")]
 	#[test]
-	fn expression_sample_defaults_state_for_older_json() {
+	fn motion_header_decodes_v1_0_json_without_stream_id_or_expected_dt_ns() {
+		// v1.0 で生成された JSON には stream_id / expected_dt_ns が存在しない。
+		let json = r#"{
+			"magic": [85, 78, 77, 70],
+			"version_major": 1,
+			"version_minor": 0,
+			"sequence": 17,
+			"timestamp_basis": "Unknown",
+			"capture_timestamp_ns": 0,
+			"frame_timestamp_ns": 0,
+			"processed_timestamp_ns": 0,
+			"coordinate_space": "Unknown",
+			"handedness": "Unknown",
+			"length_unit": "Unknown"
+		}"#;
+
+		let decoded: MotionHeader = serde_json::from_str(json).expect("deserialize v1.0 header");
+
+		assert_eq!(decoded.version_major, 1);
+		assert_eq!(decoded.version_minor, 0);
+		assert_eq!(decoded.sequence, 17);
+		assert_eq!(decoded.stream_id, None);
+		assert_eq!(decoded.expected_dt_ns, None);
+	}
+
+	#[cfg(feature = "serde")]
+	#[test]
+	fn expression_sample_defaults_state_to_valid_for_older_json() {
+		// v1.0 では `state` 欠落が当然存在し得る。v1.1 では `Valid` を既定とする。
 		let json = r#"{
 			"name": "vmc:Joy",
 			"value": 0.5,
@@ -428,7 +499,7 @@ mod tests {
 		let decoded: ExpressionSample = serde_json::from_str(json).expect("deserialize expression sample");
 
 		assert_eq!(decoded.name, "vmc:Joy");
-		assert_eq!(decoded.state, SampleState::Missing);
+		assert_eq!(decoded.state, SampleState::Valid);
 	}
 
 	#[cfg(feature = "serde")]
@@ -437,7 +508,7 @@ mod tests {
 		let decoded: MotionMetadata = serde_json::from_str(r#"{"notes":["legacy"]}"#).expect("deserialize metadata");
 
 		assert_eq!(decoded.schema_name, "UNMotionFrame");
-		assert_eq!(decoded.schema_version, "1.0.0");
+		assert_eq!(decoded.schema_version, "1.1.0");
 		assert_eq!(decoded.notes, vec!["legacy"]);
 		assert!(decoded.extensions.is_empty());
 	}

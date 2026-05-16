@@ -1,26 +1,24 @@
-[package]
-name = "un-motion-frame"
-version = "1.0.0"
+[workspace]
+members = ["crates/un-motion-frame", "crates/un-motion-zenoh"]
+resolver = "2"
+
+[workspace.package]
 edition = "2024"
-license = "MIT"
 authors = ["usagi / USAGI.NETWORK"]
+license = "MIT"
 repository = "https://github.com/usagi/un-motion-frame"
-description = "UNMotion と関連プロジェクト向けのトランスポート非依存モーションフレームスキーマ。"
-readme = "README.md"
-keywords = ["motion-capture", "mocap", "avatar", "schema"]
-categories = ["data-structures", "multimedia"]
 
-[lib]
-name = "un_motion_frame"
-path = "src/lib.rs"
+[workspace.lints.rust]
+unsafe_code = "forbid"
 
-[features]
-default = ["std", "serde"]
-std = []
-serde = ["dep:serde"]
-
-[dependencies]
-serde = { version = "1", features = ["derive"], optional = true }
-
-[dev-dependencies]
+[workspace.dependencies]
+# v1.1 系を path 越しで共有。crates.io 公開時はバージョン指定の方を優先するため
+# `un-motion-frame = { workspace = true }` を継続利用できるよう `version` と `path` を併記している。
+un-motion-frame = { path = "crates/un-motion-frame", version = "1.1.0" }
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+anyhow = "1"
+thiserror = "2"
+rmp-serde = "1"
+crossbeam-channel = "0.5"
+tracing = "0.1"

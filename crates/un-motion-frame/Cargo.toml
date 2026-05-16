@@ -1,0 +1,29 @@
+[package]
+name = "un-motion-frame"
+version = "1.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "UNMotion と関連プロジェクト向けのトランスポート非依存モーションフレームスキーマ。"
+readme = "../../README.md"
+keywords = ["motion-capture", "mocap", "avatar", "schema"]
+categories = ["data-structures", "multimedia"]
+
+[lib]
+name = "un_motion_frame"
+path = "src/lib.rs"
+
+[features]
+default = ["std", "serde"]
+std = []
+serde = ["dep:serde"]
+
+[dependencies]
+serde = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+
+[lints]
+workspace = true
