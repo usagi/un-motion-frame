@@ -239,7 +239,7 @@ extension metadata から参照する。
 - JSONL: 1 行に serialized `UNMotionFrame` 1 個。
 - MessagePack/CBOR: message ごとに frame 1 個。
 - Zenoh: motion stream ごとに topic を分け、value は serialized frame。
-  公式の Zenoh wire 規約は同 workspace の `un-motion-zenoh` crate と
+  公式の Zenoh wire 規約は同 workspace の `un-motion-frame-zenoh` crate と
   `docs/zenoh-transport.md` を参照。
 
 transport envelope は routing、topic、QoS、arrival timestamp metadata を追加できる。
@@ -263,6 +263,6 @@ slot を意識する必要は無い。
 - `ExpressionSample.state` の **欠落時の既定値** を `Missing` から `Valid` に変更。
   既存 sender が `state` を毎フレーム明示している場合は影響なし。
 - `MotionMetadata.schema_version` の既定値を `"1.0.0"` から `"1.1.0"` に更新。
-- transport 規約として **`un-motion-zenoh` crate** を新設 (本 crate の外側で定義)。
+- transport 規約として **`un-motion-frame-zenoh` crate** を新設 (本 crate の外側で定義)。
 - 既存 field の意味・型は変更していない。v1.0 sender が生成したフレームは v1.1 receiver で
   そのまま decode できる。

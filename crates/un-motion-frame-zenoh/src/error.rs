@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-/// `un-motion-zenoh` の操作全般で返るエラー。
+/// `un-motion-frame-zenoh` の操作全般で返るエラー。
 #[derive(Debug, Error)]
 pub enum Error {
 	/// MessagePack エンコードに失敗。

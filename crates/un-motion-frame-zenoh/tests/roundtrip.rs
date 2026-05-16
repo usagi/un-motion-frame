@@ -4,7 +4,7 @@
 //! `ZenohTopicStrategy::key_expr_for_frame` / Subscriber 受信ハンドラ) を一気通貫で確認する。
 
 use un_motion_frame::{MotionSourceInfo, MotionSourceKind, TrackingState, UNMotionFrame};
-use un_motion_zenoh::{
+use un_motion_frame_zenoh::{
 	InMemoryBackend, Publisher, Subscriber, TopicMode, ZenohTopicStrategy,
 };
 
@@ -91,7 +91,7 @@ fn publisher_to_subscriber_by_stream_id_routes_per_stream() {
 
 #[test]
 fn replay_backend_delivers_queued_frames() {
-	let mut backend = un_motion_zenoh::ReplayBackend::new();
+	let mut backend = un_motion_frame_zenoh::ReplayBackend::new();
 	let frame_a = make_frame(101, "rep", "replay:cam0");
 	let frame_b = make_frame(102, "rep", "replay:cam0");
 	backend.push_frame("un-motion/frame/v1", &frame_a).unwrap();
