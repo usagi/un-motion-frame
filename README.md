@@ -33,7 +33,7 @@ let frame = UNMotionFrame::new(1);
 ```toml
 [dependencies]
 un-motion-frame = "1.1"
-un-motion-frame-zenoh = "0.1"
+un-motion-frame-zenoh = "1.1"
 ```
 
 ```rust
@@ -77,6 +77,7 @@ while let Some(frame) = subscriber.try_recv_frame()? {
 - MessagePack エンコード / デコード。
 - schema major version を埋め込んだ key expression (`un-motion/frame/v1/...`)。
 - Pub / Sub の Backend trait と、Zenoh セッションを使った既定実装。
+- 自動探索の既定動作を維持したまま、固定TCP listen / connect endpointを指定する接続設定。
 - 統合テスト用の In-Memory / Replay バックエンド。
 
 ## ドキュメント

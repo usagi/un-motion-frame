@@ -62,6 +62,7 @@ mod publisher;
 mod replay;
 mod subscriber;
 mod topic;
+mod transport;
 
 pub use codec::{decode_frame, encode_frame};
 pub use error::Error;
@@ -69,7 +70,8 @@ pub use in_memory::{InMemoryBackend, PublishedMessage};
 pub use publisher::{Publisher, PublisherBackend};
 pub use replay::ReplayBackend;
 pub use subscriber::{ReceivedMessage, Subscriber, SubscriberBackend, SubscriptionHandle};
-pub use topic::{ZenohTopicStrategy, TopicMode, sanitize_segment};
+pub use topic::{TopicMode, ZenohTopicStrategy, sanitize_segment};
+pub use transport::ZenohSessionConfig;
 
 #[cfg(feature = "zenoh-transport")]
 pub use publisher::ZenohSessionBackend;

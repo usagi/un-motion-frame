@@ -104,10 +104,10 @@ pub use real::ZenohSubscriberBackend;
 
 #[cfg(feature = "zenoh-transport")]
 mod real {
-	use zenoh::{Config, Session, Wait};
+	use zenoh::{Session, Wait};
 
-	use crate::Error;
 	use super::{ReceivedMessage, SubscriberBackend, SubscriptionHandle};
+	use crate::{Error, ZenohSessionConfig};
 
 	/// 実 Zenoh セッションをラップした Subscriber バックエンド。
 	pub struct ZenohSubscriberBackend {
@@ -116,7 +116,12 @@ mod real {
 
 	impl ZenohSubscriberBackend {
 		pub fn open_default() -> Result<Self, Error> {
-			let session = zenoh::open(Config::default())
+			Self::open(&ZenohSessionConfig::default())
+		}
+
+		/// connect endpoint や scouting policy を指定してセッションを開く。
+		pub fn open(config: &ZenohSessionConfig) -> Result<Self, Error> {
+			let session = zenoh::open(config.to_zenoh_config()?)
 				.wait()
 				.map_err(|e| Error::transport(format!("zenoh open failed: {e}")))?;
 			Ok(Self { session })

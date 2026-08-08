@@ -15,6 +15,26 @@ Zenoh で交換するときの **key / payload / QoS / 互換ルール**」だ�
 Publisher 側 (UNMotion など) と Subscriber 側 (UN Avatar など) は、**同じ `un-motion-frame-zenoh`
 crate を使う** ことで wire 規約が崩れないことを保証する。
 
+## 接続方式
+
+`ZenohSessionBackend::open_default()` / `ZenohSubscriberBackend::open_default()` は
+`zenoh::Config::default()` をそのまま使う。これは同一PCを含む通常利用の既定であり、multicast
+scouting とZenoh peerの可変listen portによるゼロ設定接続を維持する。
+
+multicast scoutingを利用できないLANでは、Publisher側アプリが利用者の明示操作によって固定TCP
+listen endpointを開き、Subscriber側アプリがそのendpointへ接続できる。上位アプリは
+`ZenohSessionConfig` を使い、次の方針を守る。
+
+- 固定listenは既定で有効にしない。従来のゼロ設定接続とport競合の回避を優先する。
+- PublisherでLAN待受を有効にした場合だけ `tcp/0.0.0.0:<port>` 等をlisten endpointに設定する。
+- Subscriberのアドレス指定モードでは `tcp/<host>:<port>` をconnect endpointに設定する。
+- 自動モードは `ZenohSessionConfig::default()` のままとし、既存動作を変えない。
+- セッション開始、peer link成立、frame受信は別の状態として利用者へ示す。
+- 生のZenoh JSON設定ではなく、上位アプリがhostとportを検証してendpointを組み立てる。
+
+固定listenはLANから到達可能になるため、上位アプリは無条件に有効化せず、利用中のendpointと
+bind失敗を明示する。インターネットへのport転送は想定しない。
+
 ## エンコーディング
 
 - 形式: **MessagePack** (`rmp-serde::to_vec` / `rmp-serde::from_slice`)。
@@ -84,7 +104,7 @@ ASCII 英数字と `-_.` 以外は `_` に置換し、空文字列は `"unknown"
 
 ## QoS と reliability
 
-`un-motion-frame-zenoh` v0.1 は Zenoh の **既定 QoS** を使う。すなわち:
+`un-motion-frame-zenoh` 1.x は Zenoh の **既定 QoS** を使う。すなわち:
 
 - Reliability: `Reliable`
 - Priority: `DataMedium`
@@ -92,7 +112,7 @@ ASCII 英数字と `-_.` 以外は `_` に置換し、空文字列は `"unknown"
 - Express: false
 
 実時間 60 Hz の avatar tracking では多少の drop は許容され、最新フレームが優先されるべきなので、
-将来 `Best Effort` + `Express` への切替を選択肢として提供する可能性がある (v0.2 以降)。
+将来 `Best Effort` + `Express` への切替を選択肢として提供する可能性がある。
 それまではアプリケーション側で過剰なバッファリングをしないことで遅延を抑える。
 
 ## レイテンシのヒント
@@ -118,12 +138,11 @@ end-to-end 遅延を観測できる。Avatar 側のレンダラはこれを使�
 
 ## 既知の制限
 
-- v0.1 では publisher の **declare_publisher** (固定 key を Zenoh に事前宣言してルーティング
-  最適化を有効化) は未対応。`session.put` のみで、毎回 ad-hoc に key を投げる。将来 v0.2 以降
-  で declare 経由に切り替える。
-- v0.1 では **attachment / encoding metadata** の付与は行わない。Subscriber は payload を
+- 1.x では publisher の **declare_publisher** (固定 key を Zenoh に事前宣言してルーティング
+  最適化を有効化) は未対応。`session.put` のみで、毎回 ad-hoc に key を投げる。
+- 1.x では **attachment / encoding metadata** の付与は行わない。Subscriber は payload を
   常に MessagePack として解釈する。Zenoh の `Encoding` フィールドを使った将来の自己記述化
   も検討中。
-- v0.1 では Publisher / Subscriber 用に **別の Zenoh セッション** を開く想定。同一プロセス内
+- 1.x では Publisher / Subscriber 用に **別の Zenohセッション** を開く想定。同一プロセス内
   で 1 セッションを共有したい場合は、`ZenohSessionBackend::from_session`
   / `ZenohSubscriberBackend::from_session` に `zenoh::Session::clone()` を渡せばよい。
